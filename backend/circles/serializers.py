@@ -24,3 +24,7 @@ class CircleSerializer(serializers.ModelSerializer):
         model = Circle
         fields = ["id", "name", "invite_code"]
         read_only_fields = ["id", "invite_code"]
+
+
+class JoinCircleSerializer(serializers.Serializer):
+    invite_code = serializers.CharField(max_length=8)
