@@ -2,8 +2,6 @@ import { useCallback, useState } from "react";
 import {
   View,
   Text,
-  TextInput,
-  Button,
   FlatList,
   StyleSheet,
   Pressable,
@@ -13,6 +11,11 @@ import {
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useFocusEffect } from "expo-router";
+import { Avatar } from "../components/ui/avatar";
+import { AppButton } from "../components/ui/button";
+import { Card } from "../components/ui/card";
+import { TextField } from "../components/ui/text-field";
+import { AppColors, Radius } from "../constants/theme";
 import api from "../services/api";
 import { notify } from "../utils/alert";
 
@@ -92,7 +95,7 @@ export default function CirclesListScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={AppColors.primary} />
       </View>
     );
   }
@@ -101,8 +104,13 @@ export default function CirclesListScreen() {
     <View style={styles.container}>
 
       <View style={styles.header}>
-        <Text style={styles.title}>My Circles</Text>
-        <Pressable onPress={logout}>
+        <View>
+          <Text style={styles.title}>My Circles</Text>
+          <Text style={styles.headerSubtitle}>
+            {circles.length} active circle{circles.length === 1 ? "" : "s"}
+          </Text>
+        </View>
+        <Pressable onPress={logout} style={styles.logoutButton}>
           <Text style={styles.logout}>Log out</Text>
         </Pressable>
       </View>
@@ -110,46 +118,73 @@ export default function CirclesListScreen() {
       <FlatList
         data={circles}
         keyExtractor={(item) => String(item.id)}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={AppColors.primary}
+          />
+        }
         ListEmptyComponent={
-          <Text style={styles.empty}>
-            You&apos;re not in any circles yet. Create one or join with an invite code.
-          </Text>
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIcon}>
+              <Text style={styles.emptyIconText}>👥</Text>
+            </View>
+            <Text style={styles.empty}>
+              You&apos;re not in any circles yet.{"\n"}Create one or join with an invite code.
+            </Text>
+          </View>
         }
         renderItem={({ item }) => (
-          <Pressable
-            style={styles.circleRow}
-            onPress={() => router.push(`/circle/${item.id}`)}>
-            <View>
-              <Text style={styles.circleName}>{item.name}</Text>
-              <Text style={styles.circleMeta}>
-                {item.member_count} member{item.member_count === 1 ? "" : "s"} · code {item.invite_code}
-              </Text>
-            </View>
+          <Pressable onPress={() => router.push(`/circle/${item.id}`)}>
+            <Card style={styles.circleCard}>
+              <Avatar label={item.name} size={44} />
+              <View style={styles.circleInfo}>
+                <Text style={styles.circleName}>{item.name}</Text>
+                <Text style={styles.circleMeta}>
+                  {item.member_count} member{item.member_count === 1 ? "" : "s"}
+                </Text>
+              </View>
+              <View style={styles.codeChip}>
+                <Text style={styles.codeChipText}>{item.invite_code}</Text>
+              </View>
+            </Card>
           </Pressable>
         )}
       />
 
-      <View style={styles.form}>
-        <TextInput
-          placeholder="New circle name"
+      <Card style={styles.formCard}>
+        <Text style={styles.formTitle}>Start a new circle</Text>
+        <TextField
+          placeholder="e.g. Family Savings"
           value={newCircleName}
           onChangeText={setNewCircleName}
-          style={styles.input}
         />
-        <Button title="Create circle" onPress={createCircle} disabled={busy || !newCircleName.trim()} />
-      </View>
+        <AppButton
+          title="Create circle"
+          variant="primary"
+          onPress={createCircle}
+          disabled={busy || !newCircleName.trim()}
+        />
+      </Card>
 
-      <View style={styles.form}>
-        <TextInput
-          placeholder="Invite code"
+      <Card style={styles.formCard}>
+        <Text style={styles.formTitle}>Join with an invite code</Text>
+        <TextField
+          placeholder="e.g. AB12CD"
           value={inviteCode}
           onChangeText={setInviteCode}
           autoCapitalize="characters"
-          style={styles.input}
         />
-        <Button title="Join circle" onPress={joinCircle} disabled={busy || !inviteCode.trim()} />
-      </View>
+        <AppButton
+          title="Join circle"
+          variant="secondary"
+          onPress={joinCircle}
+          disabled={busy || !inviteCode.trim()}
+        />
+      </Card>
 
     </View>
   );
@@ -160,6 +195,7 @@ const styles = StyleSheet.create({
 
   container: {
     flex: 1,
+    backgroundColor: AppColors.background,
     padding: 20,
   },
 
@@ -167,58 +203,120 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: AppColors.background,
   },
 
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 16,
   },
 
   title: {
-    fontSize: 24,
-    fontWeight: "600",
+    fontSize: 26,
+    fontWeight: "800",
+    color: AppColors.text,
+  },
+
+  headerSubtitle: {
+    fontSize: 13,
+    color: AppColors.textMuted,
+    marginTop: 2,
+  },
+
+  logoutButton: {
+    backgroundColor: AppColors.dangerSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.pill,
   },
 
   logout: {
-    color: "#c0392b",
+    color: AppColors.danger,
+    fontWeight: "700",
+    fontSize: 13,
+  },
+
+  list: {
+    flex: 1,
+  },
+
+  listContent: {
+    paddingBottom: 8,
+  },
+
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 30,
+  },
+
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: Radius.pill,
+    backgroundColor: AppColors.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+
+  emptyIconText: {
+    fontSize: 28,
   },
 
   empty: {
     textAlign: "center",
-    marginTop: 40,
-    color: "#666",
+    color: AppColors.textMuted,
+    lineHeight: 20,
   },
 
-  circleRow: {
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#ccc",
+  circleCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 12,
+  },
+
+  circleInfo: {
+    flex: 1,
   },
 
   circleName: {
-    fontSize: 17,
-    fontWeight: "500",
+    fontSize: 16,
+    fontWeight: "700",
+    color: AppColors.text,
   },
 
   circleMeta: {
-    color: "#666",
+    color: AppColors.textMuted,
     marginTop: 2,
+    fontSize: 13,
   },
 
-  form: {
-    flexDirection: "row",
-    gap: 10,
-    alignItems: "center",
+  codeChip: {
+    backgroundColor: AppColors.neutralSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.sm,
+  },
+
+  codeChipText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: AppColors.textMuted,
+    letterSpacing: 0.5,
+  },
+
+  formCard: {
     marginTop: 12,
   },
 
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    padding: 10,
-    borderRadius: 6,
+  formTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: AppColors.text,
+    marginBottom: 12,
   },
 
 });

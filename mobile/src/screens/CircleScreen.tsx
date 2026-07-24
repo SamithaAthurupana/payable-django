@@ -4,13 +4,18 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Pressable,
   RefreshControl,
   ActivityIndicator,
 } from "react-native";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Avatar } from "../components/ui/avatar";
+import { Badge } from "../components/ui/badge";
+import { AppButton } from "../components/ui/button";
+import { Card } from "../components/ui/card";
+import { ProgressBar } from "../components/ui/progress-bar";
+import { AppColors, Radius } from "../constants/theme";
 import api from "../services/api";
 import { notify } from "../utils/alert";
 
@@ -49,6 +54,12 @@ type CircleDetail = {
   members: Member[];
   rounds: Round[];
 };
+
+const STATUS_VARIANT = {
+  OPEN: "success",
+  PENDING: "warning",
+  CLOSED: "neutral",
+} as const;
 
 export default function CircleScreen() {
 
@@ -116,37 +127,80 @@ export default function CircleScreen() {
   if (loading || !circle) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={AppColors.primary} />
       </View>
     );
   }
 
   const isAdmin = circle.admin === username;
+  const paidCount = circle.members.filter((m) => m.has_been_paid).length;
 
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={AppColors.primary} />
+      }>
 
-      <Text style={styles.title}>{circle.name}</Text>
-      <Text style={styles.subtitle}>Invite code: {circle.invite_code}</Text>
+      <Card style={styles.headerCard}>
+        <View style={styles.headerRow}>
+          <Avatar label={circle.name} size={48} />
+          <View style={styles.headerText}>
+            <Text style={styles.title}>{circle.name}</Text>
+            <Text style={styles.subtitle}>{circle.member_count} members</Text>
+          </View>
+        </View>
+        <View style={styles.inviteRow}>
+          <Text style={styles.inviteLabel}>Invite code</Text>
+          <View style={styles.codeChip}>
+            <Text style={styles.codeChipText}>{circle.invite_code}</Text>
+          </View>
+        </View>
+        <View style={styles.payoutProgress}>
+          <View style={styles.payoutProgressLabels}>
+            <Text style={styles.payoutProgressLabel}>Payout rotation</Text>
+            <Text style={styles.payoutProgressValue}>
+              {paidCount}/{circle.member_count}
+            </Text>
+          </View>
+          <ProgressBar
+            progress={circle.member_count ? paidCount / circle.member_count : 0}
+            color={AppColors.secondary}
+          />
+        </View>
+      </Card>
 
       <Text style={styles.sectionTitle}>Members</Text>
-      {circle.members.map((member) => (
-        <View key={member.id} style={styles.memberRow}>
-          <Text style={styles.memberName}>
-            {member.position}. {member.username}
-            {member.username === circle.admin ? " (admin)" : ""}
-          </Text>
-          <Text style={member.has_been_paid ? styles.paid : styles.unpaid}>
-            {member.has_been_paid ? "Paid out" : "Not paid yet"}
-          </Text>
-        </View>
-      ))}
+      <Card style={styles.membersCard}>
+        {circle.members.map((member, index) => (
+          <View
+            key={member.id}
+            style={[
+              styles.memberRow,
+              index === circle.members.length - 1 && styles.memberRowLast,
+            ]}>
+            <Avatar label={member.username} size={34} />
+            <Text style={styles.memberName}>
+              {member.position}. {member.username}
+              {member.username === circle.admin ? "  " : ""}
+            </Text>
+            {member.username === circle.admin && <Badge label="Admin" variant="info" />}
+            <View style={styles.memberStatus}>
+              <Badge
+                label={member.has_been_paid ? "Paid out" : "Not paid yet"}
+                variant={member.has_been_paid ? "success" : "neutral"}
+              />
+            </View>
+          </View>
+        ))}
+      </Card>
 
       <Text style={styles.sectionTitle}>Rounds</Text>
       {circle.rounds.length === 0 && (
-        <Text style={styles.empty}>No rounds yet.</Text>
+        <Card style={styles.emptyCard}>
+          <Text style={styles.empty}>No rounds yet.</Text>
+        </Card>
       )}
       {circle.rounds.map((round) => {
         const isPayoutMember = round.payout_member === username;
@@ -154,51 +208,76 @@ export default function CircleScreen() {
           (contribution) => contribution.username === username
         );
         const busy = busyRoundId === round.id;
+        const requiredContributions = Math.max(circle.member_count - 1, 1);
+        const progress = round.contributions.length / requiredContributions;
 
         return (
-          <View key={round.id} style={styles.roundCard}>
-            <Text style={styles.roundHeader}>
-              Round {round.id} · {round.status}
-            </Text>
-            <Text>Payout to: {round.payout_member}</Text>
-            <Text>Amount: {round.contribution_amount}</Text>
-            <Text>Deadline: {new Date(round.deadline).toLocaleString()}</Text>
-            <Text>
-              Contributions: {round.contributions.length}/{circle.member_count - 1}
-            </Text>
+          <Card key={round.id} style={styles.roundCard}>
+            <View style={styles.roundHeaderRow}>
+              <Text style={styles.roundHeader}>Round {round.id}</Text>
+              <Badge label={round.status} variant={STATUS_VARIANT[round.status]} />
+            </View>
+
+            <View style={styles.roundDetailRow}>
+              <Text style={styles.roundDetailLabel}>Payout to</Text>
+              <Text style={styles.roundDetailValue}>{round.payout_member}</Text>
+            </View>
+            <View style={styles.roundDetailRow}>
+              <Text style={styles.roundDetailLabel}>Amount</Text>
+              <Text style={styles.roundDetailValue}>{round.contribution_amount}</Text>
+            </View>
+            <View style={styles.roundDetailRow}>
+              <Text style={styles.roundDetailLabel}>Deadline</Text>
+              <Text style={styles.roundDetailValue}>
+                {new Date(round.deadline).toLocaleString()}
+              </Text>
+            </View>
+
+            {round.status !== "CLOSED" && (
+              <View style={styles.roundProgress}>
+                <View style={styles.payoutProgressLabels}>
+                  <Text style={styles.payoutProgressLabel}>Contributions</Text>
+                  <Text style={styles.payoutProgressValue}>
+                    {round.contributions.length}/{requiredContributions}
+                  </Text>
+                </View>
+                <ProgressBar progress={progress} />
+              </View>
+            )}
 
             {round.status === "OPEN" && !isPayoutMember && !alreadyContributed && (
-              <Pressable
-                style={styles.actionButton}
-                disabled={busy}
-                onPress={() => contribute(round)}>
-                <Text style={styles.actionButtonText}>
-                  {busy ? "Contributing..." : "Contribute"}
-                </Text>
-              </Pressable>
+              <View style={styles.actionSpacer}>
+                <AppButton
+                  title={busy ? "Contributing..." : "Contribute"}
+                  loading={busy}
+                  onPress={() => contribute(round)}
+                />
+              </View>
             )}
 
             {round.status === "OPEN" && alreadyContributed && (
-              <Text style={styles.paid}>You&apos;ve contributed to this round</Text>
+              <View style={styles.actionSpacer}>
+                <Badge label="You've contributed to this round" variant="success" />
+              </View>
             )}
 
             {isAdmin && round.status === "OPEN" && (
-              <Pressable
-                style={[styles.actionButton, styles.approveButton]}
-                disabled={busy}
-                onPress={() => approve(round)}>
-                <Text style={styles.actionButtonText}>
-                  {busy ? "Approving..." : "Approve round"}
-                </Text>
-              </Pressable>
+              <View style={styles.actionSpacer}>
+                <AppButton
+                  title={busy ? "Approving..." : "Approve round"}
+                  variant="success"
+                  loading={busy}
+                  onPress={() => approve(round)}
+                />
+              </View>
             )}
 
             {round.status === "CLOSED" && (
-              <Text style={styles.closed}>
-                Closed · paid out {round.final_payout_amount}
-              </Text>
+              <View style={styles.actionSpacer}>
+                <Badge label={`Closed · paid out ${round.final_payout_amount}`} variant="neutral" />
+              </View>
             )}
-          </View>
+          </Card>
         );
       })}
 
@@ -211,92 +290,185 @@ const styles = StyleSheet.create({
 
   container: {
     flex: 1,
+    backgroundColor: AppColors.background,
+  },
+
+  content: {
     padding: 20,
+    paddingBottom: 40,
   },
 
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: AppColors.background,
   },
 
-  title: {
-    fontSize: 26,
-    fontWeight: "600",
-  },
-
-  subtitle: {
-    color: "#666",
-    marginTop: 4,
+  headerCard: {
     marginBottom: 20,
   },
 
-  sectionTitle: {
-    fontSize: 18,
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  headerText: {
+    flex: 1,
+  },
+
+  title: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: AppColors.text,
+  },
+
+  subtitle: {
+    color: AppColors.textMuted,
+    marginTop: 2,
+    fontSize: 13,
+  },
+
+  inviteRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: AppColors.border,
+  },
+
+  inviteLabel: {
+    color: AppColors.textMuted,
+    fontSize: 13,
     fontWeight: "600",
-    marginTop: 10,
-    marginBottom: 8,
+  },
+
+  codeChip: {
+    backgroundColor: AppColors.neutralSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.sm,
+  },
+
+  codeChipText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: AppColors.textMuted,
+    letterSpacing: 0.5,
+  },
+
+  payoutProgress: {
+    marginTop: 16,
+  },
+
+  payoutProgressLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+
+  payoutProgressLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: AppColors.textMuted,
+  },
+
+  payoutProgressValue: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: AppColors.text,
+  },
+
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: AppColors.text,
+    marginBottom: 10,
+  },
+
+  membersCard: {
+    padding: 4,
+    marginBottom: 20,
   },
 
   memberRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#ccc",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: AppColors.border,
+  },
+
+  memberRowLast: {
+    borderBottomWidth: 0,
   },
 
   memberName: {
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: "600",
+    color: AppColors.text,
+    flex: 1,
   },
 
-  paid: {
-    color: "#2e7d32",
+  memberStatus: {
+    marginLeft: "auto",
   },
 
-  unpaid: {
-    color: "#999",
+  emptyCard: {
+    marginBottom: 12,
   },
 
   empty: {
-    color: "#666",
+    color: AppColors.textMuted,
   },
 
   roundCard: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 14,
-    marginBottom: 12,
-    gap: 4,
+    marginBottom: 14,
+    gap: 2,
+  },
+
+  roundHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
   },
 
   roundHeader: {
     fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 4,
+    fontWeight: "800",
+    color: AppColors.text,
   },
 
-  actionButton: {
-    backgroundColor: "#208AEF",
-    borderRadius: 6,
-    paddingVertical: 10,
-    alignItems: "center",
+  roundDetailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 3,
+  },
+
+  roundDetailLabel: {
+    fontSize: 13,
+    color: AppColors.textMuted,
+  },
+
+  roundDetailValue: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: AppColors.text,
+  },
+
+  roundProgress: {
     marginTop: 10,
   },
 
-  approveButton: {
-    backgroundColor: "#2e7d32",
-  },
-
-  actionButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-
-  closed: {
-    color: "#666",
-    marginTop: 8,
+  actionSpacer: {
+    marginTop: 12,
   },
 
 });

@@ -26,6 +26,44 @@ export const Colors = {
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
+/**
+ * App-level palette used by the screens under src/screens.
+ * Kept separate from `Colors` (which backs the ThemedText/ThemedView
+ * scaffold components) so the two design systems don't fight each other.
+ */
+export const AppColors = {
+  primary: '#5B4FE9',
+  primaryDark: '#4338CA',
+  primarySoft: '#EEECFE',
+  secondary: '#0EA5A5',
+  secondarySoft: '#DCFCF4',
+  success: '#16A34A',
+  successSoft: '#DCFCE7',
+  warning: '#D97706',
+  warningSoft: '#FEF3C7',
+  danger: '#DC2626',
+  dangerSoft: '#FEE2E2',
+  neutralSoft: '#F1F1F6',
+
+  background: '#F6F6FB',
+  card: '#FFFFFF',
+  border: '#E6E6F0',
+
+  text: '#15162B',
+  textMuted: '#6B7089',
+  textFaint: '#9A9EB5',
+
+  avatarPalette: ['#5B4FE9', '#0EA5A5', '#D97706', '#DB2777', '#2563EB', '#059669'],
+} as const;
+
+export const Radius = {
+  sm: 8,
+  md: 12,
+  lg: 18,
+  xl: 24,
+  pill: 999,
+} as const;
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */
