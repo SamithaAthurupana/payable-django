@@ -2,7 +2,6 @@ import { useCallback, useState } from "react";
 import {
   View,
   Text,
-  Alert,
   StyleSheet,
   ScrollView,
   Pressable,
@@ -13,6 +12,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import api from "../services/api";
+import { notify } from "../utils/alert";
 
 type Member = {
   id: number;
@@ -70,7 +70,7 @@ export default function CircleScreen() {
       setCircle(circleResponse.data);
       setUsername(storedUsername);
     } catch (error) {
-      Alert.alert("Error", "Could not load this circle");
+      notify("Error", "Could not load this circle");
     }
   };
 
@@ -91,10 +91,10 @@ export default function CircleScreen() {
     setBusyRoundId(round.id);
     try {
       const response = await api.post(`rounds/${round.id}/contribute/`);
-      Alert.alert("Contributed", `Paid ${response.data.total}`);
+      notify("Contributed", `Paid ${response.data.total}`);
       await load();
     } catch (error: any) {
-      Alert.alert("Error", error?.response?.data?.error ?? "Could not contribute");
+      notify("Error", error?.response?.data?.error ?? "Could not contribute");
     } finally {
       setBusyRoundId(null);
     }
@@ -104,10 +104,10 @@ export default function CircleScreen() {
     setBusyRoundId(round.id);
     try {
       const response = await api.post(`rounds/${round.id}/approve/`);
-      Alert.alert("Approved", `Final payout: ${response.data.final_payout}`);
+      notify("Approved", `Final payout: ${response.data.final_payout}`);
       await load();
     } catch (error: any) {
-      Alert.alert("Error", error?.response?.data?.error ?? "Could not approve round");
+      notify("Error", error?.response?.data?.error ?? "Could not approve round");
     } finally {
       setBusyRoundId(null);
     }

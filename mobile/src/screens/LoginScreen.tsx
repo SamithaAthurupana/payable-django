@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   Button,
-  Alert,
   StyleSheet,
   Pressable,
   ActivityIndicator,
@@ -13,6 +12,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import api from "../services/api";
+import { notify } from "../utils/alert";
 
 export default function LoginScreen() {
 
@@ -40,7 +40,7 @@ export default function LoginScreen() {
 
     } catch (error) {
 
-      Alert.alert("Error", "Invalid username or password");
+      notify("Error", "Invalid username or password");
 
     } finally {
 

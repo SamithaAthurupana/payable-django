@@ -5,7 +5,6 @@ import {
   TextInput,
   Button,
   FlatList,
-  Alert,
   StyleSheet,
   Pressable,
   RefreshControl,
@@ -15,6 +14,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useFocusEffect } from "expo-router";
 import api from "../services/api";
+import { notify } from "../utils/alert";
 
 type Circle = {
   id: number;
@@ -37,7 +37,7 @@ export default function CirclesListScreen() {
       const response = await api.get("circles/");
       setCircles(response.data);
     } catch (error) {
-      Alert.alert("Error", "Could not load your circles");
+      notify("Error", "Could not load your circles");
     }
   };
 
@@ -63,7 +63,7 @@ export default function CirclesListScreen() {
       setNewCircleName("");
       await loadCircles();
     } catch (error) {
-      Alert.alert("Error", "Could not create circle");
+      notify("Error", "Could not create circle");
     } finally {
       setBusy(false);
     }
@@ -78,7 +78,7 @@ export default function CirclesListScreen() {
       setInviteCode("");
       await loadCircles();
     } catch (error: any) {
-      Alert.alert("Error", error?.response?.data?.error ?? "Could not join circle");
+      notify("Error", error?.response?.data?.error ?? "Could not join circle");
     } finally {
       setBusy(false);
     }

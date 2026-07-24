@@ -4,13 +4,13 @@ import {
   Text,
   TextInput,
   Button,
-  Alert,
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
 
 import { router } from "expo-router";
 import api from "../services/api";
+import { notify } from "../utils/alert";
 
 export default function RegisterScreen() {
 
@@ -29,12 +29,12 @@ export default function RegisterScreen() {
         password,
       });
 
-      Alert.alert("Success", "Account created. Please log in.");
+      notify("Success", "Account created. Please log in.");
       router.replace("/login");
 
     } catch (error) {
 
-      Alert.alert("Error", "Could not create account. Try a different username.");
+      notify("Error", "Could not create account. Try a different username.");
 
     } finally {
 
