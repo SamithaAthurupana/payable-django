@@ -1,6 +1,8 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
+from .models import Circle
+
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -15,3 +17,10 @@ class RegisterSerializer(serializers.ModelSerializer):
             password=validated_data["password"]
         )
         return user
+
+
+class CircleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Circle
+        fields = ["id", "name", "invite_code"]
+        read_only_fields = ["id", "invite_code"]
