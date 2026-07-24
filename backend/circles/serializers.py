@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
-from .models import Circle
+from .models import Circle, Round
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -28,3 +28,9 @@ class CircleSerializer(serializers.ModelSerializer):
 
 class JoinCircleSerializer(serializers.Serializer):
     invite_code = serializers.CharField(max_length=8)
+
+
+class RoundSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Round
+        fields = "__all__"

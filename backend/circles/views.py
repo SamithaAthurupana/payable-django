@@ -1,14 +1,26 @@
+from math import floor
+from datetime import timedelta
+
 from django.db import transaction
+from django.db.models import Sum
+from django.utils import timezone
 
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
-from .models import Circle, Membership
+from .models import (
+    Circle,
+    Membership,
+    Round,
+    Contribution,
+)
+
 from .serializers import (
     RegisterSerializer,
     CircleSerializer,
     JoinCircleSerializer,
+    RoundSerializer,
 )
 
 
@@ -22,10 +34,8 @@ class CreateCircleView(generics.CreateAPIView):
 
     @transaction.atomic
     def perform_create(self, serializer):
-        # Create the circle with the logged-in user as admin
         circle = serializer.save(admin=self.request.user)
 
-        # Creator automatically becomes the first member
         Membership.objects.create(
             circle=circle,
             user=self.request.user,
@@ -38,13 +48,11 @@ class JoinCircleView(APIView):
 
     @transaction.atomic
     def post(self, request):
-        # Validate request data
         serializer = JoinCircleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         invite_code = serializer.validated_data["invite_code"]
 
-        # Check if the invite code exists
         try:
             circle = Circle.objects.get(invite_code=invite_code)
 
@@ -54,7 +62,6 @@ class JoinCircleView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Check if the user is already a member
         if Membership.objects.filter(
             circle=circle,
             user=request.user
@@ -64,7 +71,6 @@ class JoinCircleView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Check if the circle is full
         member_count = Membership.objects.filter(circle=circle).count()
 
         if member_count >= 4:
@@ -73,7 +79,6 @@ class JoinCircleView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Add the new member
         Membership.objects.create(
             circle=circle,
             user=request.user,
@@ -83,4 +88,124 @@ class JoinCircleView(APIView):
         return Response(
             {"message": "Joined successfully"},
             status=status.HTTP_201_CREATED
+        )
+
+
+class ContributeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, round_id):
+
+        round_obj = Round.objects.get(id=round_id)
+
+        membership = Membership.objects.get(
+            circle=round_obj.circle,
+            user=request.user
+        )
+
+        if membership == round_obj.payout_member:
+            return Response(
+                {"error": "Recipient does not contribute"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        amount = round_obj.contribution_amount
+
+        penalty = 0
+        late = False
+
+        if timezone.now() > round_obj.deadline:
+            late = True
+
+            penalty = round(
+                amount * round_obj.penalty_rate / 100
+            )
+
+        Contribution.objects.create(
+            round=round_obj,
+            member=membership,
+            amount=amount,
+            penalty=penalty,
+            is_late=late
+        )
+
+        return Response(
+            {
+                "amount": amount,
+                "penalty": penalty,
+                "total": amount + penalty
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+
+class ApproveRoundView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, round_id):
+
+        # Lock this row until transaction finishes
+        round_obj = Round.objects.select_for_update().get(id=round_id)
+
+        # Already processed?
+        if round_obj.status == "CLOSED":
+            return Response(
+                {"message": "Round already approved"},
+                status=status.HTTP_200_OK
+            )
+
+        # Only admin can approve
+        if round_obj.circle.admin != request.user:
+            return Response(
+                {"error": "Only admin can approve"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        total = Contribution.objects.filter(
+            round=round_obj
+        ).aggregate(
+            Sum("amount"),
+            Sum("penalty")
+        )
+
+        contribution_total = total["amount__sum"] or 0
+        penalty_total = total["penalty__sum"] or 0
+
+        grand_total = contribution_total + penalty_total
+
+        # Deduct 1% platform fee
+        final_amount = floor(grand_total * 0.99)
+
+        round_obj.final_payout_amount = final_amount
+        round_obj.status = "CLOSED"
+        round_obj.save()
+
+        # Mark recipient as paid
+        payout = round_obj.payout_member
+        payout.has_been_paid = True
+        payout.save()
+
+        # Create the next round automatically
+        next_member = Membership.objects.filter(
+            circle=round_obj.circle,
+            has_been_paid=False
+        ).order_by("position").first()
+
+        if next_member:
+            Round.objects.create(
+                circle=round_obj.circle,
+                payout_member=next_member,
+                contribution_amount=5000,
+                penalty_rate=3,
+                deadline=timezone.now() + timedelta(days=7),
+                status="OPEN"
+            )
+
+        return Response(
+            {
+                "final_payout": final_amount
+            },
+            status=status.HTTP_200_OK
         )
