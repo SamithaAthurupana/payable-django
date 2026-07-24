@@ -6,41 +6,35 @@ import {
   Button,
   Alert,
   StyleSheet,
-  Pressable,
   ActivityIndicator,
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import api from "../services/api";
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const login = async () => {
+  const register = async () => {
 
     setLoading(true);
 
     try {
 
-      const response = await api.post("login/", {
+      await api.post("register/", {
         username,
         password,
       });
 
-      await AsyncStorage.setMany({
-        token: response.data.access,
-        username,
-      });
-
-      router.replace("/circles");
+      Alert.alert("Success", "Account created. Please log in.");
+      router.replace("/login");
 
     } catch (error) {
 
-      Alert.alert("Error", "Invalid username or password");
+      Alert.alert("Error", "Could not create account. Try a different username.");
 
     } finally {
 
@@ -53,7 +47,7 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
 
-      <Text style={styles.title}>Payable</Text>
+      <Text style={styles.title}>Create account</Text>
 
       <TextInput
         placeholder="Username"
@@ -75,15 +69,11 @@ export default function LoginScreen() {
         <ActivityIndicator />
       ) : (
         <Button
-          title="LOGIN"
-          onPress={login}
+          title="REGISTER"
+          onPress={register}
           disabled={!username || !password}
         />
       )}
-
-      <Pressable onPress={() => router.push("/register")} style={styles.registerLink}>
-        <Text style={styles.registerText}>Don&apos;t have an account? Register</Text>
-      </Pressable>
 
     </View>
   );
@@ -99,7 +89,7 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "600",
     textAlign: "center",
     marginBottom: 30,
@@ -110,15 +100,6 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 15,
     borderRadius: 6,
-  },
-
-  registerLink: {
-    marginTop: 20,
-    alignItems: "center",
-  },
-
-  registerText: {
-    color: "#208AEF",
   },
 
 });

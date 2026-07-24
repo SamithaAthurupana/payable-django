@@ -19,6 +19,7 @@ from .models import (
 from .serializers import (
     RegisterSerializer,
     CircleSerializer,
+    CircleDetailSerializer,
     JoinCircleSerializer,
     RoundSerializer,
 )
@@ -28,9 +29,14 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
 
 
-class CreateCircleView(generics.CreateAPIView):
+class CircleListCreateView(generics.ListCreateAPIView):
     serializer_class = CircleSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Circle.objects.filter(
+            memberships__user=self.request.user
+        ).distinct()
 
     @transaction.atomic
     def perform_create(self, serializer):
@@ -41,6 +47,16 @@ class CreateCircleView(generics.CreateAPIView):
             user=self.request.user,
             position=1
         )
+
+
+class CircleDetailView(generics.RetrieveAPIView):
+    serializer_class = CircleDetailSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Circle.objects.filter(
+            memberships__user=self.request.user
+        ).distinct()
 
 
 class JoinCircleView(APIView):

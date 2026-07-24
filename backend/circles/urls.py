@@ -2,7 +2,8 @@ from django.urls import path
 
 from .views import (
     RegisterView,
-    CreateCircleView,
+    CircleListCreateView,
+    CircleDetailView,
     JoinCircleView,
     ContributeView,
     ApproveRoundView,
@@ -11,7 +12,9 @@ from .views import (
 urlpatterns = [
     path("register/", RegisterView.as_view()),
 
-    path("circles/", CreateCircleView.as_view()),
+    path("circles/", CircleListCreateView.as_view()),
+
+    path("circles/<int:pk>/", CircleDetailView.as_view()),
 
     path("join/", JoinCircleView.as_view()),
 
